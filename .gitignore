@@ -1,0 +1,4 @@
+/tuitodo
+*.test
+*.out
+.DS_Store

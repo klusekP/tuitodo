@@ -19,7 +19,7 @@ Built in Go with [Bubble Tea](https://github.com/charmbracelet/bubbletea) — no
 - Fullscreen, responsive UI — adapts to terminal resizing on the fly
 - Scrollable list with position indicator (e.g. `1-20/150`)
 - Add, edit, and delete tasks
-- Toggle tasks as done or pending
+- Toggle tasks as done or pending — completing a task moves it **below every still-pending** item (pending first, then done)
 - Clear all completed tasks with a single key
 - Automatic persistence to `~/.tuitodo.json`
 - Clean, colorful interface ([lipgloss](https://github.com/charmbracelet/lipgloss))

@@ -24,6 +24,7 @@ func NewService(r todo.Repo) *Service {
 	if s.items == nil {
 		s.items = []todo.Item{}
 	}
+	s.sortPendingFirst()
 	return s
 }
 
@@ -47,14 +48,17 @@ func (s *Service) persist() error {
 // ErrInvalidIndex is returned when an index is out of range.
 var ErrInvalidIndex = errors.New("invalid task index")
 
-// Add appends a new task and saves.
+// Add appends a new task, moves it to the pending group (invariant: pending before done), and saves.
 func (s *Service) Add(title string) (newIndex int, err error) {
-	s.items = append(s.items, todo.NewItem(title))
+	before := append([]todo.Item(nil), s.items...)
+	newItem := todo.NewItem(title)
+	s.items = append(s.items, newItem)
+	s.sortPendingFirst()
 	if err := s.persist(); err != nil {
-		s.items = s.items[:len(s.items)-1]
+		s.items = before
 		return 0, err
 	}
-	return len(s.items) - 1, nil
+	return s.indexByID(newItem.ID), nil
 }
 
 // SetTitle updates the task title at i and saves.
@@ -71,18 +75,22 @@ func (s *Service) SetTitle(i int, title string) error {
 	return nil
 }
 
-// Toggle flips the done flag at i and saves.
-func (s *Service) Toggle(i int) (done bool, err error) {
+// Toggle flips the done flag at i, reorders so all pending items stay above completed ones, saves,
+// and returns the task's new index (cursor should follow the same item).
+func (s *Service) Toggle(i int) (done bool, newIndex int, err error) {
 	if i < 0 || i >= len(s.items) {
-		return false, ErrInvalidIndex
+		return false, 0, ErrInvalidIndex
 	}
+	before := append([]todo.Item(nil), s.items...)
+	id := s.items[i].ID
 	s.items[i].Done = !s.items[i].Done
 	done = s.items[i].Done
+	s.sortPendingFirst()
 	if err := s.persist(); err != nil {
-		s.items[i].Done = !s.items[i].Done
-		return false, err
+		s.items = before
+		return false, 0, err
 	}
-	return done, nil
+	return done, s.indexByID(id), nil
 }
 
 // Remove deletes the task at i and saves.
@@ -129,4 +137,29 @@ func (s *Service) Counts() (done, total int) {
 		}
 	}
 	return done, total
+}
+
+// sortPendingFirst keeps relative order within each group: all pending first, then all completed.
+func (s *Service) sortPendingFirst() {
+	var pending, done []todo.Item
+	for _, t := range s.items {
+		if !t.Done {
+			pending = append(pending, t)
+		}
+	}
+	for _, t := range s.items {
+		if t.Done {
+			done = append(done, t)
+		}
+	}
+	s.items = append(pending, done...)
+}
+
+func (s *Service) indexByID(id int64) int {
+	for i, t := range s.items {
+		if t.ID == id {
+			return i
+		}
+	}
+	return -1
 }

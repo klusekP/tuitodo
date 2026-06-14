@@ -33,9 +33,9 @@ func TestServiceAddAndToggle(t *testing.T) {
 	if s.Len() != 1 {
 		t.Fatalf("len = %d", s.Len())
 	}
-	done, err := s.Toggle(0)
-	if err != nil || !done {
-		t.Fatalf("toggle: done=%v err=%v", done, err)
+	done, newIdx, err := s.Toggle(0)
+	if err != nil || !done || newIdx != 0 {
+		t.Fatalf("toggle: done=%v newIdx=%d err=%v", done, newIdx, err)
 	}
 	if len(r.items) != 1 || !r.items[0].Done {
 		t.Fatalf("repo: %+v", r.items)
@@ -65,5 +65,35 @@ func TestServiceClearDone(t *testing.T) {
 	}
 	if s.Len() != 1 || s.Items()[0].Title != "b" {
 		t.Fatal("unexpected items")
+	}
+}
+
+func TestToggleMovesDoneBelowPending(t *testing.T) {
+	r := &fakeRepo{items: []todo.Item{
+		{ID: 1, Title: "first", Done: false},
+		{ID: 2, Title: "second", Done: false},
+		{ID: 3, Title: "third", Done: false},
+	}}
+	s := NewService(r)
+	// Mark first row (index 0) as done → should sit under all pending (second, third).
+	done, newIdx, err := s.Toggle(0)
+	if err != nil || !done {
+		t.Fatal(err)
+	}
+	items := s.Items()
+	if len(items) != 3 {
+		t.Fatalf("len=%d", len(items))
+	}
+	if items[0].Title != "second" || items[0].Done {
+		t.Fatalf("want second first (pending), got %+v", items[0])
+	}
+	if items[1].Done || items[1].Title != "third" {
+		t.Fatalf("want third second (pending), got %+v", items[1])
+	}
+	if !items[2].Done || items[2].Title != "first" {
+		t.Fatalf("want first last and done, got %+v", items[2])
+	}
+	if newIdx != 2 {
+		t.Fatalf("cursor should follow item, want index 2 got %d", newIdx)
 	}
 }

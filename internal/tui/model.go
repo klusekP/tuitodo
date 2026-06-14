@@ -116,9 +116,10 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case " ", "enter", "x":
 		if len(items) > 0 {
-			done, err := m.svc.Toggle(m.cursor)
+			done, newIdx, err := m.svc.Toggle(m.cursor)
 			m.setSaveErr(err)
 			if err == nil {
+				m.cursor = newIdx
 				if done {
 					m.status = "Task completed"
 				} else {
